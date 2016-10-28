@@ -2,9 +2,7 @@
 #define STATE_SPACE_CONTROL_H
 
 #include "Arduino.h"
-//#include "BasicLinearAlgebra.h"
-
-#include "/home/tom/Arduino/libraries/BasicLinearAlgebra/BasicLinearAlgebra.h"
+#include "BasicLinearAlgebra.h"
 
 enum EstimationType { FullStateFeedback, Autonomous };
 
