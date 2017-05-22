@@ -39,16 +39,16 @@ public:
     void Initialise()
     {
         Matrix<states+outputs,states+inputs> sys;
-        sys.Submatrix(Range<states>(0),Range<states>(0)) = systemMatrix;
-        sys.Submatrix(Range<states>(0),Range<inputs>(states)) = inputMatrix;
-        sys.Submatrix(Range<outputs>(states),Range<states>(0)) = outputMatrix;
-        sys.Submatrix(Range<outputs>(states),Range<inputs>(states)) = directTransmissionMatrix;
+        sys.Submatrix(Slice<0,states>(),Slice<0,states>()) = systemMatrix;
+        sys.Submatrix(Slice<0,states>(),Slice<states,states+inputs>()) = inputMatrix;
+        sys.Submatrix(Slice<states,states+outputs>(),Slice<0,states>()) = outputMatrix;
+        sys.Submatrix(Slice<states,states+outputs>(),Slice<states,states+inputs>()) = directTransmissionMatrix;
 
         // Find an inverse for the system matrix
         Matrix<states + inputs, states + outputs> sysInv = sys.Transpose() * (sys * sys.Transpose()).Inverse();
 
         // Split it up and multiply it with K to find NBar
-        precompensator = controlGain * sysInv.Submatrix(Range<states>(0),Range<outputs>(states)) + sysInv.Submatrix(Range<inputs>(states),Range<outputs>(states));
+        precompensator = controlGain * sysInv.Submatrix(Slice<0,states>(),Slice<states,states+outputs>()) + sysInv.Submatrix(Slice<states,states+inputs>(),Slice<states,states+outputs>());
     }
 
     void Update(Matrix<states> &systemState, float dt)
@@ -96,16 +96,16 @@ public:
     {
         // Aggregate all the state space matrices into one big matrix
         Matrix<states + outputs, states + inputs> sys;
-        sys.Submatrix(Range<states>(0),Range<states>(0)) = systemMatrix;
-        sys.Submatrix(Range<states>(0),Range<inputs>(states)) = inputMatrix;
-        sys.Submatrix(Range<outputs>(states),Range<states>(0)) = outputMatrix;
-        sys.Submatrix(Range<outputs>(states),Range<inputs>(states)) = directTransmissionMatrix;
-
+        sys.Submatrix(Slice<0,states>(),Slice<0,states>()) = systemMatrix;
+        sys.Submatrix(Slice<0,states>(),Slice<states,states+inputs>()) = inputMatrix;
+        sys.Submatrix(Slice<states,states+outputs>(),Slice<0,states>()) = outputMatrix;
+        sys.Submatrix(Slice<states,states+outputs>(),Slice<states,states+inputs>()) = directTransmissionMatrix;
+        
         // Find an inverse for the aggregated matrix
         Matrix<states + inputs, states + outputs> sysInv = sys.Transpose() * (sys * sys.Transpose()).Inverse();
 
         // Split it up and multiply it with K to find NBar
-        precompensator = controlGain * sysInv.Submatrix(Range<states>(0),Range<outputs>(states)) + sysInv.Submatrix(Range<inputs>(states),Range<outputs>(states));
+        precompensator = controlGain * sysInv.Submatrix(Slice<0,states>(),Slice<states,states+outputs>()) + sysInv.Submatrix(Slice<states,states+inputs>(),Slice<states,states+outputs>());
 
         // We can save a bit of time by precalculating the (F - L * H) term in the state update equation
         systemEstimatorOutput = systemMatrix - estimatorGain * outputMatrix;
