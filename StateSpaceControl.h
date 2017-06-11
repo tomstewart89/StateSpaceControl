@@ -4,124 +4,70 @@
 #include "Arduino.h"
 #include "BasicLinearAlgebra.h"
 
-enum EstimationType { FullStateFeedback, Autonomous };
+struct InputBase;
 
-template<int states, int inputs, int outputs, EstimationType type = Autonomous> class StateSpaceController { };
-
-template<int states, int inputs, int outputs> class StateSpaceController<states, inputs, outputs, FullStateFeedback>
+struct BlockBase
 {
-public:
-    //
-    Matrix<inputs> controlInput;
-    Matrix<outputs> referenceInput;
+    static const int MAX_INPUTS = 16;
 
-    // State space matrices
-    Matrix<states,states> systemMatrix;
-    Matrix<states,inputs> inputMatrix;
-    Matrix<outputs,states> outputMatrix;
-    Matrix<outputs,inputs> directTransmissionMatrix;
+    mutable int noOfInputs;
+    InputBase *inputs[MAX_INPUTS];
 
-    // Gains
-    Matrix<inputs,states> controlGain;
-    Matrix<outputs,outputs> integralGain;
+    BlockBase() : noOfInputs(0) { }
+    virtual bool initialise() const = 0;
+};
 
-    // Things to precalculate
-    Matrix<inputs,outputs> precompensator;
 
-    StateSpaceController()
+struct InputBase
+{
+    const BlockBase *block;
+
+    InputBase() : block(NULL) { }
+};
+
+
+template<int N> struct Block : public BlockBase
+{
+    enum InitState { Unnitialised, Initialising, Initialised } initState;
+    Block() : initState(InitState::Uninitialised) { }
+    virtual bool init() { return true; }
+    virtual const Matrix<N> &compute() const = 0;
+
+    bool initialise() const
     {
-        // Zero out all the matrices
-        systemMatrix.Fill(0); inputMatrix.Fill(0); outputMatrix.Fill(0); directTransmissionMatrix.Fill(0);
-        controlInput.Fill(0); referenceInput.Fill(0);
-        controlGain.Fill(0); integralGain.Fill(0);
-    }
+        if(initState == InitState::Initialised)
+            return true;
 
-    void Initialise()
-    {
-        Matrix<states+outputs,states+inputs> sys;
-        sys.Submatrix(Slice<0,states>(),Slice<0,states>()) = systemMatrix;
-        sys.Submatrix(Slice<0,states>(),Slice<states,states+inputs>()) = inputMatrix;
-        sys.Submatrix(Slice<states,states+outputs>(),Slice<0,states>()) = outputMatrix;
-        sys.Submatrix(Slice<states,states+outputs>(),Slice<states,states+inputs>()) = directTransmissionMatrix;
+        // if this happens it means there is a recurrence in this graph, meaning things will never be calculated, so fail
+        if(initState == InitState::Initialising)
+            return false;
 
-        // Find an inverse for the system matrix
-        Matrix<states + inputs, states + outputs> sysInv = sys.Transpose() * (sys * sys.Transpose()).Inverse();
+        initState = InitState::Initialising;
 
-        // Split it up and multiply it with K to find NBar
-        precompensator = controlGain * sysInv.Submatrix(Slice<0,states>(),Slice<states,states+outputs>()) + sysInv.Submatrix(Slice<states,states+inputs>(),Slice<states,states+outputs>());
-    }
+        // first initialise everything that this block is connected to
+        for(int i = 0; i < noOfInputs; ++i)
+        {
+            // if the input hasn't been connected yet, or if it's block fails to initialise then forget it
+            if(!inputs[i]->block || !inputs[i]->block->initialise())
+                return false;
+        }
 
-    void Update(Matrix<states> &systemState, float dt)
-    {
-        // Recalculate the control input
-        controlInput =  precompensator * referenceInput - controlGain * systemState;
+        // Lastly if the block's own initialisation fails then bail out
+        if(!this->init())
+            return false;
 
-        // Windup the reference input
-        referenceInput += integralGain * (referenceInput - outputMatrix * systemState) * dt;
+        initState = InitState::Initialised;
+
+        return true;
     }
 };
 
-template<int states, int inputs, int outputs> class StateSpaceController<states, inputs, outputs, Autonomous>
+
+template<int N> struct Input : public InputBase
 {
-public:
-    //
-    Matrix<inputs> controlInput;
-    Matrix<outputs> referenceInput;
-    Matrix<states> stateEstimate;
-
-    // State space matrices
-    Matrix<states,states> systemMatrix;
-    Matrix<states,inputs> inputMatrix;
-    Matrix<outputs,states> outputMatrix;
-    Matrix<outputs,inputs> directTransmissionMatrix;
-
-    // Gains
-    Matrix<inputs,states> controlGain;
-    Matrix<states,outputs> estimatorGain;
-    Matrix<outputs,outputs> integralGain;
-
-    // Things to precalculate
-    Matrix<inputs,outputs> precompensator;
-    Matrix<states,states> systemEstimatorOutput;
-
-    StateSpaceController()
-    {
-        // Zero out all the matrices
-        systemMatrix.Fill(0); inputMatrix.Fill(0); outputMatrix.Fill(0); directTransmissionMatrix.Fill(0);
-        stateEstimate.Fill(0); controlInput.Fill(0); referenceInput.Fill(0);
-        controlGain.Fill(0); integralGain.Fill(0); estimatorGain.Fill(0);
-    }
-
-    void Initialise()
-    {
-        // Aggregate all the state space matrices into one big matrix
-        Matrix<states + outputs, states + inputs> sys;
-        sys.Submatrix(Slice<0,states>(),Slice<0,states>()) = systemMatrix;
-        sys.Submatrix(Slice<0,states>(),Slice<states,states+inputs>()) = inputMatrix;
-        sys.Submatrix(Slice<states,states+outputs>(),Slice<0,states>()) = outputMatrix;
-        sys.Submatrix(Slice<states,states+outputs>(),Slice<states,states+inputs>()) = directTransmissionMatrix;
-        
-        // Find an inverse for the aggregated matrix
-        Matrix<states + inputs, states + outputs> sysInv = sys.Transpose() * (sys * sys.Transpose()).Inverse();
-
-        // Split it up and multiply it with K to find NBar
-        precompensator = controlGain * sysInv.Submatrix(Slice<0,states>(),Slice<states,states+outputs>()) + sysInv.Submatrix(Slice<states,states+inputs>(),Slice<states,states+outputs>());
-
-        // We can save a bit of time by precalculating the (F - L * H) term in the state update equation
-        systemEstimatorOutput = systemMatrix - estimatorGain * outputMatrix;
-    }
-
-    void Update(Matrix<outputs> &systemOutput, float dt)
-    {
-        // autonomous estimator Fig 7.49(b):  x_dot = (F - L * H) * x_bar + G * u + L * y
-        stateEstimate += (systemEstimatorOutput * stateEstimate + inputMatrix * controlInput + estimatorGain * systemOutput) * dt;
-
-        // Recalculate the control input
-        controlInput =  precompensator * referenceInput - controlGain * stateEstimate;
-
-        // Windup the reference input
-        referenceInput += integralGain * (referenceInput - outputMatrix * stateEstimate) * dt;
-    }
+    Input(const BlockBase &parent) { parent.inputs[parent.noOfInputs++] = this; }
+    void connect(const Block<N> &_block) { block = &_block; }
+    const Matrix<N> operator()() const { return static_cast<Input<N>*>(block)->compute(); }
 };
 
 #endif // STATE_SPACE_CONTROL_H
