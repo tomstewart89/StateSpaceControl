@@ -1,12 +1,12 @@
 # StateSpaceControl
 
-This library builds on [BasicLinearAlgebra](https://github.com/tomstewart89/BasicLinearAlgebra) to define ```StateSpaceController```; a template class which implements a multi-input, multi-output state space feedback controller with reference tracking, state estimation and integral control.
+This library defines ```StateSpaceController```; a template class which implements a multi-input, multi-output state space feedback controller with reference tracking, state estimation and integral control.
 
 The architecture of the controller implemented by this library is as follows:
 
 ![integral_control](https://user-images.githubusercontent.com/2457362/36100996-6f4d30d2-104b-11e8-9aec-dd66ff9d441b.png)
 
-If everything in this block diagram makes perfect sense to you then, great! Feel free to carry on to find out how to fill in the system matrices and gains in your controller object. If not, you might like to read through the What is State Space Control README to familiarise yourself with some of the core concepts.
+If everything in this block diagram makes perfect sense to you then, great! Feel free to carry on to find out how to fill in the system matrices and gains in your controller object. If not, you might like to read through the [What is State Space Control](https://github.com/tomstewart89/StateSpaceControl/blob/master/extras/what_is_state_space_control.md) tutorial to familiarise yourself with some of the core concepts.
 
 ## How It Works
 
@@ -64,7 +64,7 @@ class StateSpaceController<X, U, Y=X, EnableReferenceTracking=true, EnableEstima
 ```
 Where Y is the number of system outputs (i.e sensor readings) and the remaining parameters are flags which enable/disable the different blocks in the diagram above.
 
-We'll follow the [Cart Pole](https://github.com/tomstewart89/StateSpaceControl/tree/master/examples/InvertedPendulum) example whose system has 4 states, 1 input and 2 outputs which means that its controller's declaration looks like so:
+We'll follow the [Cart Pole](https://github.com/tomstewart89/StateSpaceControl/tree/master/examples/CartPole) example whose system has 4 states, 1 input and 2 outputs which means that its controller's declaration looks like so:
 
 ```
 StateSpaceController<4,1,2,true,true,true> controller;
@@ -83,4 +83,4 @@ controller.I;
 
 You may have noticed that we have as many as three gain matrices to fill out each with potentially numerous elements. If you've ever tuned a PID controller you'll know that picking good gains is crucial, time consuming and at times requires a lot of guesswork.
 
-Fortunately, state space control includes a formal process for selecting good feedback gains by defining a cost function to balance control effort versus tracking error. I've included an ipython notebook in this library to walk you through the steps involved in those calculations so be sure to check out [Tune Those Gains!]() once you've finished your system modelling.
+Fortunately, state space control includes a formal process for selecting good feedback gains by defining a cost function to balance control effort versus tracking error. I've included an ipython notebook in this library to walk you through the steps involved in those calculations so be sure to check out [Tune Those Gains!](https://github.com/tomstewart89/StateSpaceControl/blob/master/extras/tune_those_gains.ipynb) once you've finished your system modelling.
