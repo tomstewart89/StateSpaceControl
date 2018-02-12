@@ -12,8 +12,8 @@ StateSpaceController	KEYWORD1
 # Methods and Functions (KEYWORD2)
 #######################################
 
-Initialise	KEYWORD2
-Update	KEYWORD2
+initialise	KEYWORD2
+update	KEYWORD2
 
 #######################################
 # Constants (LITERAL1)

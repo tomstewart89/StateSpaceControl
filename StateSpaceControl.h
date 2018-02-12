@@ -3,124 +3,88 @@
 
 #include "Arduino.h"
 #include "BasicLinearAlgebra.h"
+#include "Model.h"
 
-enum EstimationType { FullStateFeedback, Autonomous };
+using namespace BLA;
 
-template<int states, int inputs, int outputs, EstimationType type = Autonomous> class StateSpaceController { };
-
-template<int states, int inputs, int outputs> class StateSpaceController<states, inputs, outputs, FullStateFeedback>
+template<bool ENABLE, int X, int Y = 1> struct EnableMatrixIf
 {
-public:
-    //
-    Matrix<inputs> controlInput;
-    Matrix<outputs> referenceInput;
-
-    // State space matrices
-    Matrix<states,states> systemMatrix;
-    Matrix<states,inputs> inputMatrix;
-    Matrix<outputs,states> outputMatrix;
-    Matrix<outputs,inputs> directTransmissionMatrix;
-
-    // Gains
-    Matrix<inputs,states> controlGain;
-    Matrix<outputs,outputs> integralGain;
-
-    // Things to precalculate
-    Matrix<inputs,outputs> precompensator;
-
-    StateSpaceController()
-    {
-        // Zero out all the matrices
-        systemMatrix.Fill(0); inputMatrix.Fill(0); outputMatrix.Fill(0); directTransmissionMatrix.Fill(0);
-        controlInput.Fill(0); referenceInput.Fill(0);
-        controlGain.Fill(0); integralGain.Fill(0);
-    }
-
-    void Initialise()
-    {
-        Matrix<states+outputs,states+inputs> sys;
-        sys.Submatrix(Slice<0,states>(),Slice<0,states>()) = systemMatrix;
-        sys.Submatrix(Slice<0,states>(),Slice<states,states+inputs>()) = inputMatrix;
-        sys.Submatrix(Slice<states,states+outputs>(),Slice<0,states>()) = outputMatrix;
-        sys.Submatrix(Slice<states,states+outputs>(),Slice<states,states+inputs>()) = directTransmissionMatrix;
-
-        // Find an inverse for the system matrix
-        Matrix<states + inputs, states + outputs> sysInv = sys.Transpose() * (sys * sys.Transpose()).Inverse();
-
-        // Split it up and multiply it with K to find NBar
-        precompensator = controlGain * sysInv.Submatrix(Slice<0,states>(),Slice<states,states+outputs>()) + sysInv.Submatrix(Slice<states,states+inputs>(),Slice<states,states+outputs>());
-    }
-
-    void Update(Matrix<states> &systemState, float dt)
-    {
-        // Recalculate the control input
-        controlInput =  precompensator * referenceInput - controlGain * systemState;
-
-        // Windup the reference input
-        referenceInput += integralGain * (referenceInput - outputMatrix * systemState) * dt;
-    }
+  typedef Matrix<X, Y> T;
 };
 
-template<int states, int inputs, int outputs> class StateSpaceController<states, inputs, outputs, Autonomous>
+template<int X, int Y> struct EnableMatrixIf<false, X, Y>
 {
-public:
-    //
-    Matrix<inputs> controlInput;
-    Matrix<outputs> referenceInput;
-    Matrix<states> stateEstimate;
+  typedef Zeros<X, Y> T;
+};
 
-    // State space matrices
-    Matrix<states,states> systemMatrix;
-    Matrix<states,inputs> inputMatrix;
-    Matrix<outputs,states> outputMatrix;
-    Matrix<outputs,inputs> directTransmissionMatrix;
+template <int X, int U, int Y=X, bool EnableReferenceTracking=true, bool EnableEstimation=false, bool EnableIntegralControl=false>
+class StateSpaceController
+{
+    typename EnableMatrixIf<EnableEstimation, X, X>::T ALC;
+    typename EnableMatrixIf<EnableReferenceTracking, U, Y>::T N_bar;
 
-    // Gains
-    Matrix<inputs,states> controlGain;
-    Matrix<states,outputs> estimatorGain;
-    Matrix<outputs,outputs> integralGain;
+  public:
+    // System model
+    Model<X, U, Y> model;
 
-    // Things to precalculate
-    Matrix<inputs,outputs> precompensator;
-    Matrix<states,states> systemEstimatorOutput;
+    // Control variables
+    Matrix<X> x_hat; // state estimate
+    Matrix<U> u; // control input
+    typename EnableMatrixIf<EnableReferenceTracking, Y>::T r; // reference input (assumed to be of the same dimension as the observation y)
+    typename EnableMatrixIf<EnableIntegralControl, U>::T w_hat; // estimate of a disturbance / error in the system model (used by the integral controller)
 
-    StateSpaceController()
+    // Control Gains
+    Matrix<U, X> K; // Regulator Gain
+    typename EnableMatrixIf<EnableEstimation, X, Y>::T L; // estimator gain
+    typename EnableMatrixIf<EnableIntegralControl, U, Y>::T I; // integral control gain
+
+    StateSpaceController() : x_hat(Zeros<X>()), u(Zeros<U>()), r(Zeros<Y>()), w_hat(Zeros<U>()) { }
+    StateSpaceController(const Model<X, U, Y>& _model) : model(_model), x_hat(Zeros<X>()), u(Zeros<U>()), r(Zeros<Y>()), w_hat(Zeros<U>()) { }
+
+    void initialise()
     {
-        // Zero out all the matrices
-        systemMatrix.Fill(0); inputMatrix.Fill(0); outputMatrix.Fill(0); directTransmissionMatrix.Fill(0);
-        stateEstimate.Fill(0); controlInput.Fill(0); referenceInput.Fill(0);
-        controlGain.Fill(0); integralGain.Fill(0); estimatorGain.Fill(0);
-    }
+      // If reference tracking is enabled we'll need to precalculate Nbar which maps the reference input to a control input offset
+      if (EnableReferenceTracking) {
+        auto sys = (model.A || model.B) && (model.C || model.D);
 
-    void Initialise()
-    {
-        // Aggregate all the state space matrices into one big matrix
-        Matrix<states + outputs, states + inputs> sys;
-        sys.Submatrix(Slice<0,states>(),Slice<0,states>()) = systemMatrix;
-        sys.Submatrix(Slice<0,states>(),Slice<states,states+inputs>()) = inputMatrix;
-        sys.Submatrix(Slice<states,states+outputs>(),Slice<0,states>()) = outputMatrix;
-        sys.Submatrix(Slice<states,states+outputs>(),Slice<states,states+inputs>()) = directTransmissionMatrix;
-        
         // Find an inverse for the aggregated matrix
-        Matrix<states + inputs, states + outputs> sysInv = sys.Transpose() * (sys * sys.Transpose()).Inverse();
+        Matrix <X+U,X+Y > sysInv = ~sys * (sys * ~sys).Inverse();
 
         // Split it up and multiply it with K to find NBar
-        precompensator = controlGain * sysInv.Submatrix(Slice<0,states>(),Slice<states,states+outputs>()) + sysInv.Submatrix(Slice<states,states+inputs>(),Slice<states,states+outputs>());
+        N_bar = K * sysInv.Submatrix(Slice<0, X>(), Slice <X,X+Y> ()) + sysInv.Submatrix(Slice <X,X+U > (), Slice <X,X+Y> ());
+      }
 
-        // We can save a bit of time by precalculating the (F - L * H) term in the state update equation
-        systemEstimatorOutput = systemMatrix - estimatorGain * outputMatrix;
+      // If estimation is enabled we can also save a bit of processing by precalculating the expression: A - L * C
+      if (EnableEstimation) {
+        ALC = model.A - L * model.C;
+      }
     }
 
-    void Update(Matrix<outputs> &systemOutput, float dt)
+    void update(const Matrix<Y> &y, float dt)
     {
-        // autonomous estimator Fig 7.49(b):  x_dot = (F - L * H) * x_bar + G * u + L * y
-        stateEstimate += (systemEstimatorOutput * stateEstimate + inputMatrix * controlInput + estimatorGain * systemOutput) * dt;
+      // If estimation is enabled, update the state estimate
+      if (EnableEstimation) {
+        x_hat += (ALC * x_hat + model.B * u + L * y) * dt;
+      }
+      // If not, then we assume that the entire state is fed back to the controller as y (i.e X == Y)
+      else {
+        static_assert(X == Y || EnableEstimation, "Estimation must be enabled if the state is only partially observed (i.e len(y) != len(x) )");
+        x_hat.Submatrix(Slice<0, Y>(), Slice <0, 1>()) = y;
+      }
 
-        // Recalculate the control input
-        controlInput =  precompensator * referenceInput - controlGain * stateEstimate;
+      // Calculate the control input required to drive the state to 0.
+      u = -K * x_hat;
 
-        // Windup the reference input
-        referenceInput += integralGain * (referenceInput - outputMatrix * stateEstimate) * dt;
+      // If reference tracking is enabled then offset the control input to drive the state to the reference input r
+      if (EnableReferenceTracking) {
+        u += N_bar * r;
+      }
+
+      // If integral control is enabled then windup the control input to offset a (presumably) constant disturbance w
+      if (EnableIntegralControl) {
+        w_hat += I * (y - r) * dt;
+        u += w_hat;
+      }
     }
 };
 
