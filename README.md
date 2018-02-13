@@ -4,7 +4,7 @@ This library defines ```StateSpaceController```; a template class which implemen
 
 The architecture of the controller implemented by this library is as follows:
 
-![integral_control](https://user-images.githubusercontent.com/2457362/36100996-6f4d30d2-104b-11e8-9aec-dd66ff9d441b.png)
+![integral_control](https://user-images.githubusercontent.com/2457362/36132608-a5abe1bc-10bb-11e8-95fc-5e877b1851db.png)
 
 If everything in this block diagram makes perfect sense to you then, great! Feel free to carry on to find out how to fill in the system matrices and gains in your controller object. If not, you might like to read through the [What is State Space Control](https://github.com/tomstewart89/StateSpaceControl/blob/master/extras/what_is_state_space_control.md) tutorial to familiarise yourself with some of the core concepts.
 
