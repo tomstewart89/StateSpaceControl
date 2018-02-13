@@ -77,8 +77,7 @@ To cancel out that $ B_1 w $ component, integral control is used to calculate an
 
 Where $ I \in \mathbf{R}^{Y \;\times\; Y} $ is the integral gain matrix. The integral component is then added to the control input alongside the contributions from the reference input and the control law like so:
 
-![integral_control](https://user-images.githubusercontent.com/2457362/36100996-6f4d30d2-104b-11e8-9aec-dd66ff9d441b.png)
-
+![integral_control](https://user-images.githubusercontent.com/2457362/36132608-a5abe1bc-10bb-11e8-95fc-5e877b1851db.png)
 
 # References
 
