@@ -31,7 +31,7 @@ Assuming it's possible to directly measure the entire state (i.e ![eq](https://l
 
 ![feedback](https://user-images.githubusercontent.com/2457362/36093336-acd4f89a-102d-11e8-9387-dd48d8455e6f.png)
 
-Like PID gains, the ![eq](https://latex.codecogs.com/png.latex?\inline&space;K) matrix needs to be carefully tuned for a given system. Depending on the complexity of the system K can be quite large which makes this tuning very difficult. Fortunately state space control includes a formal method for tuning gains to arrive at what is called a Linear Quadratic Regulator. To calculate an LQR for your system head over to the [Tune Those Gains!](https://github.com/tomstewart89/StateSpaceControl/tree/master/utils) python noteobook. 
+Like PID gains, the ![eq](https://latex.codecogs.com/png.latex?\inline&space;K) matrix needs to be carefully tuned for a given system. Depending on the complexity of the system K can be quite large which makes this tuning very difficult. Fortunately state space control includes a formal method for tuning gains to arrive at what is called a Linear Quadratic Regulator. To calculate an LQR for your system head over to the [Tune Those Gains!](https://github.com/tomstewart89/StateSpaceControl/tree/master/utils) python notebook. 
 
 ### Reference Tracking
 
