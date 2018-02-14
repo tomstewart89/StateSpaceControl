@@ -1,0 +1,13 @@
+name: TuneThoseGains
+channels:
+- conda-forge
+- defaults
+dependencies:
+- blas
+- control
+- matplotlib
+- numpy
+- openblas
+- scikit-learn
+- scipy
+- slycot

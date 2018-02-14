@@ -17,7 +17,7 @@ State space control assumes that a dynamic system maintains some internal set of
 \boldsymbol{y} = C \boldsymbol{x} + D \boldsymbol{u}
 \end{equation}
 
-These equations basically say that the rate of change of the state as well as the system's output are linear combinations of the state and the control input. These linear combinations are defined by four matrices:
+These equations basically say that the rate of change of the state as well as the system's output are linear combinations of the current state and the control input. These linear combinations are defined by four matrices:
 
 * $ A \in \mathbf{R}^{X \;\times\; X} $ is the state transition matrix, which describes the way in which the state would evolve over time in the absence of any control inputs
 * $ B \in \mathbf{R}^{X \;\times\; U} $ is the input matrix, which describes the effect of a control input on the state
@@ -81,7 +81,7 @@ Where $ I \in \mathbf{R}^{Y \;\times\; Y} $ is the integral gain matrix. The int
 
 # References
 
-This has been a pretty casal introduction to a quite a complex topic so if you're still not feeling comfortable with the concepts at play in state space control, have a look at the following resources:
+This has been a pretty casual introduction to a quite a complex topic so if you're still not feeling comfortable with the concepts involved in state space control, have a look at the following resources:
 
 * [Feedback Control of Dynamic Systems](https://www.amazon.com/Feedback-Control-Dynamic-Systems-7th/dp/0133496597)  - the textbook I used to learn about State Space Control
 * [Feedback Systems: An Introduction for Scientists and Engineers](http://www.cds.caltech.edu/~murray/FBSwiki) - a textbook written by the authors of the python control library used in this notebook!
