@@ -10,77 +10,104 @@ If everything in this block diagram makes perfect sense to you then, great! Feel
 
 ## How It Works
 
-### Full State Feedback, No Integral Control
+### State Space Models
 
-Everything required to work with this library is wrapped up in the ```StateSpaceController``` class. The most simple use case for the ```StateSpaceController``` class is when the system being controlled has full state feedback and doesn't require any integral control. In that case a ```StateSpaceController``` can be instantiated just by supplying the number of states (X) and number of control inputs (U) as template parameters like so:
+Before creating a state space controller, you'll need to define a model to describe the system that the controller is meant to work with. Specifically, you'll need to define how many states, inputs and outputs that system has. To do this, define a model object like so:
+
+```Model<X,U,Y> model;```
+
+Where ```X``` would be replaced with the number of states, ```U``` with the number of control inputs and ```Y``` with the number of outputs. 
+
+You'll also need to specify how the inputs affect the state and how in turn the state affects the outputs. This can be done by filling in the four matrices defined by model; ```A```, ```B```, ```C``` & ```D```. These matrices are straight out of [BasicLinearAlgebra](https://github.com/tomstewart89/BasicLinearAlgebra) so you can do all the fancy things with them here as you might have in that library too, including eigen-style assignment like so:
 
 ```
-StateSpaceController<3,1> controller;
+model.A << 1, 2, 3,
+           4, 5, 6,
+           7, 8, 9;
 ```
-In this case we'll assume that the system has 3 states and 1 control input which incidentally, is that same as the system in the [Motor Position](https://github.com/tomstewart89/StateSpaceControl/tree/master/examples/MotorPosition) example. 
 
-After you've declared a ```StateSpaceController``` we'll need to fill out its system matrices before you can start using it. Based on the template parameters, the ```StateSpaceController``` will declare a ```Model``` containing 4 instances of ```Matrix``` appropriately sized to hold the system matrices which can be accessed via the controller's ```model``` member. The ```Matrix``` class is defined in the [BasicLinearAlgebra](https://github.com/tomstewart89/BasicLinearAlgebra) library so for more on how to manipulate them refer to the [README](https://github.com/tomstewart89/BasicLinearAlgebra/blob/master/README.md). 
+Once you've filled in all four of those matrices then you're ready to define a controller. As a sidenote, there's also some predefined models for common dynamic systems in [Model.h](https://github.com/tomstewart89/StateSpaceControl/blob/master/Model.h). At the moment it's just CartPole and a DC motor which are used by the example sketches but I plan to expand on this list in the future. In the meantime, these model also clearly show how to fill in the system matrices so keep them in mind!
 
-For now we'll just set the (0,0) element of the state transition matrix like so:
+### A Simple State Space Controller
+
+A simple state controller controller can be defined like so:
+
+```StateSpaceController<X,U> controller(model);```
+
+Where again ```X``` would be replaced with the number of states, ```U``` with the number of control inputs and model is some predefined, compatible ```Model<X,U>```.
+
+This controller assumes that the entire state can be directly measured (so called full-state feedback) so it doesn't bother with state estimation. It also doesn't use integral control.
+
+To parameterise this controller, all that needs to be done is to fill out the control gain matrix, ```controller.K``` like so:
 ```
-controller.model.A(0,0) = 5.24;
+controller.K << 1, 2, 3, 4;
 ```
-You'll also need to fill out the gain matrix K which can be accessed via the ```K``` member:
-```
-controller.K(0,1) = 12.92;
-```
-Once the gains and the system matrices are filled out, the controller object is ready to be used, but first it needs to be initialised so that it can calculate the precompensator as well as a few matrices in the estimator:
+Where 1, 2, 3, 4 would be replaced with appropriately selected feedback gains (more on that below). 
+
+From there, simply initialise the controller like so:
 ```
 controller.initialise();
 ```
-Now we're ready to start our control. To specify a setpoint we'll just need to write to the ```controller.r``` member which has the same size as the system output (which in this case is the same size as the state):
+Define a setpoint:
 ```
-controller.r(0,0) = 2.2;
+controller.r << 2.2;
 ```
-Next the controller needs to be regularly updated so that it can refresh its commanded control input. To do so, the controller expects sensor readings in the form of a ```Matrix``` of size Y and a float to indicate the time since the last update took place:
-
+And begin the control loop. Firstly update the controller with an observation ```y```:
 ```
-float dt = DELAY;
-Matrix<3> y;
-
-y(0) = 24.43  // (the value of state variable 1)
-y(1) = 44.2 // (the value of state variable 2)
-y(2) = 234.2 // (the value of state variable 3)
-
 controller.update(y, dt);
+```
+Where ```y``` is a matrix populated with ```Y``` sensor readings taken from the actual system. 
+
+Then the updated control input can be accessed like so:
+```
+controller.u;
+```
+Which can be sent to the physical system's actuators to drive it to the setpoint.
+
+For a complete example of how to set up a StateSpaceControl with this kind of system refer to the [Motor Position](https://github.com/tomstewart89/StateSpaceControl/blob/master/examples/MotorPosition/MotorPosition.ino) example.
+
+### A State Space Controller With the Works
+
+To define a more advanced controller, you can introduce state estmation and integral control by defining the ```StateSpaceController``` like so:
+```
+StateSpaceController<X,U,Y,true,true> controller(model);
+```
+Where yet again ```X``` would be replaced with the number of states, ```U``` with the number of control inputs and ```Y``` with the number of outputs. Additionally, two flag must be set to true, the first represents whether state estimation should be used and the second whether integral control should be used.
+
+To parameterise this controller, this time three matrices, ```K```, ```L```, ```I``` need to be filled in, like so:
 
 ```
-Finally, we can access the updated control input via the ```controller.u``` member which can then be used in your sketch to command your actuators and control your system:
-```
-updateSegwayWheelTorques(controller.u);
-```
+controller.K << 1, 2, 3, 4;
 
-### Including State Estimation & Integral Control
+controller.L << 1,
+                2,
+                3,
+                4;
+                
+controller.I << 1;
+```
+Where 1, 2, 3, 4 are replaced with carefully selected feedback gains (see below for more)
 
-Expanding ```StateSpaceController``` to support estimation and integral control just requires filling in a few more template parameters when the controller object is instantiated. The full set of template parameters (and their defaults) are actually as follows:
+From there, again, initialise the controller like so:
+```
+controller.initialise();
+```
+Define a setpoint:
+```
+controller.r << 0.1, 5.2;
+```
+And begin the control loop:
+```
+while(true) {
+   // Get sensor readings from the plant and store them in y
+   controller.update(y, dt);
+   // Use controller.u to update the plant's actuators
+}
+```
+For a complete example of how to set up a StateSpaceControl with this kind of system refer to the [Cart Pole](https://github.com/tomstewart89/StateSpaceControl/blob/master/examples/CartPole/CartPole.ino) example.
 
-```
-class StateSpaceController<X, U, Y=X, EnableReferenceTracking=true, EnableEstimation=false, EnableIntegralControl=false>
-```
-Where Y is the number of system outputs (i.e sensor readings) and the remaining parameters are flags which enable/disable the different blocks in the diagram above.
+## Tuning Those Gains
 
-We'll follow the [Cart Pole](https://github.com/tomstewart89/StateSpaceControl/tree/master/examples/CartPole) example whose system has 4 states, 1 input and 2 outputs which means that its controller's declaration looks like so:
-
-```
-StateSpaceController<4,1,2,true,true,true> controller;
-```
-From there the only extra requirements are that we fill in two additional gain matrices:
-
-```
-controller.L;
-```
-and
-```
-controller.I;
-```
-
-## Utilities
-
-You may have noticed that we have as many as three gain matrices to fill out each with potentially numerous elements. If you've ever tuned a PID controller you'll know that picking good gains is crucial, time consuming and at times requires a lot of guesswork.
+You may have noticed that there are as many as three gain matrices to fill out each with potentially numerous elements. If you've ever tuned a PID controller you'll know that picking good gains is a crucial, time consuming exercise that, at times, requires a lot of guesswork.
 
 Fortunately, state space control includes a formal process for selecting good feedback gains by defining a cost function to balance control effort versus tracking error. I've included an ipython notebook in this library to walk you through the steps involved in those calculations so be sure to check out [Tune Those Gains!](https://github.com/tomstewart89/StateSpaceControl/blob/master/utils/TuneThoseGains.ipynb) once you've finished your system modelling.
