@@ -7,6 +7,8 @@
 #######################################
 
 StateSpaceController	KEYWORD1
+Model	KEYWORD1
+Simulation	KEYWORD1
 
 #######################################
 # Methods and Functions (KEYWORD2)
