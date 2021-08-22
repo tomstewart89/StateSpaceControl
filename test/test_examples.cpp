@@ -13,25 +13,16 @@ TEST(Examples, CartPole)
 {
     CartPole::setup();
 
-    for (int i = 0; i < 100; ++i)
+    for (int i = 0; i < 1000; ++i)
     {
         CartPole::loop();
     }
 
-    Serial.begin(0);
+    Serial.buf.str("");
 
     CartPole::loop();
 
-    std::cout << Serial.buf.str() << "\n";
-
-    // EXPECT_STREQ(
-    //     Serial.buf.str().c_str(),
-    //     "distance from drone to ground station: 1.58\n"
-    //     "drone pose: R: [[0.00,1.00,0.00],[-1.00,0.00,0.00],[0.00,0.00,1.00]] p: [[1.50],[0.00],[0.50]]\n"
-    //     "other_drone_relative_to_GS: R: [[0.00,0.97,-0.26],[-1.00,0.00,0.00],[0.00,0.26,0.97]] p: "
-    //     "[[3.50],[0.00],[0.50]]\n"
-    //     "T_GS_otherdrone: R: [[0.00,0.97,-0.26],[-1.00,0.00,0.00],[0.00,0.26,0.97]] p: [[3.50],[0.00],[0.50]]\n"
-    //     "T_otherdrone_GS: R: [[0.00,-1.00,0.00],[0.97,0.00,0.26],[-0.26,0.00,0.97]] p: [[-0.00],[-3.51],[0.42]]");
+    EXPECT_STREQ(Serial.buf.str().c_str(), "cart position = 3.50 stick angle = 0.00\n");
 }
 
 namespace MotorPosition
@@ -43,23 +34,16 @@ TEST(Examples, MotorPosition)
 {
     MotorPosition::setup();
 
-    for (int i = 0; i < 100; ++i)
+    for (int i = 0; i < 1000; ++i)
     {
         MotorPosition::loop();
     }
 
-    Serial.begin(0);
+    Serial.buf.str("");
 
     MotorPosition::loop();
 
-    std::cout << Serial.buf.str() << "\n";
-
-    // EXPECT_STREQ(Serial.buf.str().c_str(),
-    //              "[[-1.00,0.00,-0.00],[0.00,1.00,-0.00],[-0.00,-0.00,-1.00]]\n"
-    //              "[[1.00,0.00,-0.00],[0.00,1.00,-0.00],[0.00,0.00,1.00]]\n"
-    //              "Gimbal locked: [[0.00,1.00,-0.00],[-0.00,0.00,1.00],[1.00,0.00,0.00]]\n"
-    //              "Still gimbal locked: [[-0.00,0.00,-1.00],[-0.00,1.00,0.00],[1.00,0.00,-0.00]]\n"
-    //              "Tricky rotation in euler angles[[1.57],[-0.79],[3.14]]");
+    EXPECT_STREQ(Serial.buf.str().c_str(), "angle = 2.20 velocity = 0.00 current = 0.00\n");
 }
 
 int main(int argc, char **argv)
