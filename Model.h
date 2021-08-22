@@ -12,16 +12,17 @@ using namespace BLA;
  * DC motor control for servos and Cart Pole for inverted pendulum problems. I'm planning on expanding on this list but in the meantime
  * feel free to PR if you come up with one of your own that might be widely useful!
  */
-template<int X, int U, int Y=X> struct Model
+template <int X, int U, int Y = X>
+struct Model
 {
-    const static int states = X;
-    const static int inputs = U;
-    const static int outputs = Y;
+     const static int states = X;
+     const static int inputs = U;
+     const static int outputs = Y;
 
-    Matrix<X,X> A;
-    Matrix<X,U> B;
-    Matrix<Y,X> C;
-    Matrix<Y,U> D;
+     Matrix<X, X> A;
+     Matrix<X, U> B;
+     Matrix<Y, X> C;
+     Matrix<Y, U> D;
 };
 
 /*
@@ -41,33 +42,32 @@ template<int X, int U, int Y=X> struct Model
  * l := length to pendulum center of mass      (m)
  * I := mass moment of inertia of the pendulum (kg.m^2)
  */
-struct CartPoleModel : public Model<4,1,2>
+struct CartPoleModel : public Model<4, 1, 2>
 {
-  CartPoleModel(float M, float m, float b, float l, float I, float g = 9.81)
-  {
-    float c = (I * (M + m) + M * m * l * l);
+     CartPoleModel(float M, float m, float b, float l, float I, float g = 9.81)
+     {
+          float c = (I * (M + m) + M * m * l * l);
 
-    // Define the system matrix
-    A << 0, 1, 0, 0,
-         0, -(I + m * l * l) * b / c, m * m * g * l * l / c, 0,
-         0, 0, 0, 1,
-         0, -m * l * b / c, m * g * l * (M + m) / c, 0;
+          // Define the system matrix
+          A = {0, 1, 0, 0,
+               0, -(I + m * l * l) * b / c, m * m * g * l * l / c, 0,
+               0, 0, 0, 1,
+               0, -m * l * b / c, m * g * l * (M + m) / c, 0};
 
-    // Define the input matrix
-    B << 0,
-         (I + m * l * l) / c,
-         0,
-         (m * l) / c;
+          // Define the input matrix
+          B = {0,
+               (I + m * l * l) / c,
+               0,
+               (m * l) / c};
 
-    // Define the output matrix
-    C << 1, 0, 0, 0,
-         0, 0, 1, 0;
+          // Define the output matrix
+          C = {1, 0, 0, 0,
+               0, 0, 1, 0};
 
-    // Define the direct transmission matrix
-    D = Zeros<2,1>();
-  }
+          // Define the direct transmission matrix
+          D = Zeros<2, 1>();
+     }
 };
-
 
 /*
  * This model describes the position of a DC motor based on a voltage input. The actual modeling for this came from http://ctms.engin.umich.edu/CTMS/index.php?example=InvertedPendulum&section=SystemModeling
@@ -85,26 +85,26 @@ struct CartPoleModel : public Model<4,1,2>
  * R = armature resistance                  (ohm)
  * L = armature inductance                  (H)
  */
-struct MotorPositionModel : public Model<3,1>
+struct MotorPositionModel : public Model<3, 1>
 {
-  MotorPositionModel(float J, float b, float k, float R, float L)
-  {
-    // Define the system matrix
-    A << 0, 1, 0,
-         0, -b / J, k / J,
-         0, -k / L, -R / L;
+     MotorPositionModel(float J, float b, float k, float R, float L)
+     {
+          // Define the system matrix
+          A = {0, 1, 0,
+               0, -b / J, k / J,
+               0, -k / L, -R / L};
 
-    // Define the input matrix
-    B << 0,
-         0,
-         1 / L;
+          // Define the input matrix
+          B = {0,
+               0,
+               1 / L};
 
-    // Define the output matrix
-    C << 1, 0, 0,
-         0, 1, 0,
-         0, 0, 1;
+          // Define the output matrix
+          C = {1, 0, 0,
+               0, 1, 0,
+               0, 0, 1};
 
-    // Define the direct transmission matrix
-    D = Zeros<3,1>();
-  }  
+          // Define the direct transmission matrix
+          D = Zeros<3, 1>();
+     }
 };
