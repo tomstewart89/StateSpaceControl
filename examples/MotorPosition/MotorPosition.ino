@@ -4,13 +4,11 @@
  * This example shows how StateSpaceControl can be used to control the position of a DC motor.
  * The model being used comes from this analysis:
  * http://ctms.engin.umich.edu/CTMS/index.php?example=MotorPosition&section=SystemModeling which defines the state as: x
- * = [angle angular_velocity current]^T . It's assumed that the entire state is measured directly so state estimation is
- * left disabled
+ * = [angle angular_velocity current]^T
  */
 
 // Start by defining a state space model, This particular model describes a DC motor but you can define any model by
-// just declaring a Model object and then filling out the state matrices. See Model.h for examples on how to do this
-// (and feel free to PR to add your own!).
+// just declaring a Model object and then filling out the state matrices. See Model.h for examples on how to do this.
 MotorPositionModel model(0.01, 0.1, 0.01, 1, 0.5);
 
 // Next define a state space controller. The motor position model uses 3 states and 1 input so we'll need to specify

@@ -41,19 +41,19 @@ class StateSpaceController
 
     void initialise()
     {
-        // If reference tracking is enabled we'll need to precalculate Nbar which maps the reference input to a control
-        // input offset
+        // For reference tracking we'll need to precalculate Nbar which maps the reference input to a control input
+        // offset
         Matrix<X + Y, X + U> sys = (model.A || model.B) && (model.C || model.D);
 
         // Find an inverse for the aggregated matrix
         Matrix<X + U, X + Y> sysInv;
 
-        // case 1: more outputs than inputs - find the left inverse
+        // Case 1: more outputs than inputs - find the left inverse
         if (model.inputs < model.outputs)
         {
             sysInv = Inverse(~sys * sys) * ~sys;
         }
-        // case 2: more than, or the same number of outputs as inputs - find the right inverse
+        // Case 2: more than, or the same number of outputs as inputs - find the right inverse
         else
         {
             sysInv = ~sys * Inverse(sys * ~sys);
@@ -62,19 +62,19 @@ class StateSpaceController
         // Split it up and multiply it with K to find NBar
         N_bar = K * sysInv.template Submatrix<X, Y>(0, X) + sysInv.template Submatrix<U, Y>(X, X);
 
-        // If estimation is enabled we can also save a bit of processing by precalculating the expression: A - L * C
+        // For state estimation we can also save a bit of processing by precalculating the expression: A - L * C
         ALC = model.A - L * model.C;
     }
 
     void update(const Matrix<Y> &y, const float dt = 0.0f)
     {
-        // If estimation is enabled, update the state estimate
+        // First, update the state estimate
         x_hat += (ALC * x_hat + model.B * u + L * y) * dt;
 
         // Calculate the control input required to drive the state to 0.
         u = -K * x_hat;
 
-        // If reference tracking is enabled then offset the control input to drive the state to the reference input r
+        // For reference tracking, offset the control input to drive the state to the reference input r
         u += N_bar * r;
 
         // If integral control is enabled then windup the control input to offset a (presumably) constant disturbance w
