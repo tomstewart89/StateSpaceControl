@@ -14,8 +14,7 @@
 CartPoleModel model(0.5, 0.2, 0.1, 0.3, 0.006);
 
 // Next define a state space controller. The cart pole model uses 4 states, 1 input and 2 outputs so we'll need to
-// specify these inside the <> brackets when declaring the controller. The controller also uses state estimation so to
-// enable this, supply true as the fourth template parameter, like so:
+// specify these inside the <> brackets when declaring the controller
 StateSpaceController<4, 1, 2> controller(model);
 
 // Lastly, since the controller isn't controlling a cart pole, we'll need to simulate one to show how the controller

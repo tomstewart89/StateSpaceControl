@@ -18,12 +18,12 @@ Before creating a state space controller, you'll need to define a model to descr
 
 Where ```X``` would be replaced with the number of states, ```U``` with the number of control inputs and ```Y``` with the number of outputs. 
 
-You'll also need to specify how the inputs affect the state and how in turn the state affects the outputs. This can be done by filling in the four matrices defined by model; ```A```, ```B```, ```C``` & ```D```. These matrices are straight out of [BasicLinearAlgebra](https://github.com/tomstewart89/BasicLinearAlgebra) so you can do all the fancy things with them here as you might have in that library too, including eigen-style assignment like so:
+You'll also need to specify how the inputs affect the state and how in turn the state affects the outputs. This can be done by filling in the four matrices defined by model; ```A```, ```B```, ```C``` & ```D```. These matrices are straight out of [BasicLinearAlgebra](https://github.com/tomstewart89/BasicLinearAlgebra) so you can do all the fancy things with them here as you might have in that library too, including assignment like so:
 
 ```
-model.A << 1, 2, 3,
+model.A = {1, 2, 3,
            4, 5, 6,
-           7, 8, 9;
+           7, 8, 9};
 ```
 
 Once you've filled in all four of those matrices then you're ready to define a controller. As a sidenote, there's also some predefined models for common dynamic systems in [Model.h](https://github.com/tomstewart89/StateSpaceControl/blob/master/Model.h). At the moment it's just Cart Pole and a DC motor model which are used by the example sketches but I plan to expand on this list in the future. In the meantime, these model also clearly show how to fill in the system matrices so keep them in mind!
@@ -40,7 +40,7 @@ This controller assumes that the entire state can be directly measured (so calle
 
 To parameterise this controller, all that needs to be done is to fill out the control gain matrix, ```controller.K``` like so:
 ```
-controller.K << 1, 2, 3, 4;
+controller.K = {1, 2, 3, 4};
 ```
 Where 1, 2, 3, 4 would be replaced with appropriately selected feedback gains (more on that [below](https://github.com/tomstewart89/StateSpaceControl/blob/master/README.md#tuning-those-gains)). 
 
@@ -50,7 +50,7 @@ controller.initialise();
 ```
 Define a setpoint:
 ```
-controller.r << 2.2;
+controller.r = {2.2};
 ```
 And begin the control loop. Firstly update the controller with an observation ```y```:
 ```
@@ -66,25 +66,22 @@ Which can be sent to the physical system's actuators to drive it to the setpoint
 
 For a complete example of how to set up a StateSpaceControl with this kind of system refer to the [Motor Position](https://github.com/tomstewart89/StateSpaceControl/blob/master/examples/MotorPosition/MotorPosition.ino) example.
 
-### A State Space Controller With the Works
+### State Estimation
 
-To define a more advanced controller, you can introduce state estmation and integral control by defining the ```StateSpaceController``` like so:
+For situations where we don't have sensors that can measure the full state, we can use state estimation to estimate the full state based on some partial observation of it. State estimation is implicitly enabled when the number of states ```X``` does not equal the number of observations ```Y```, so simply define your state space controller like so:
 ```
-StateSpaceController<X,U,Y,true,true> controller(model);
+StateSpaceController<X,U,Y> controller(model);
 ```
-Where yet again ```X``` would be replaced with the number of states, ```U``` with the number of control inputs and ```Y``` with the number of outputs. Additionally, two flags must be set to true, the first represents whether state estimation should be used and the second whether integral control should be used.
 
-To parameterise this controller, this time three matrices, ```K```, ```L```, ```I``` need to be filled in like so:
+To parameterise this controller, this time two matrices, ```K``` and ```L``` need to be filled in like so:
 
 ```
-controller.K << 1, 2, 3, 4;
+controller.K = {1, 2, 3, 4};
 
-controller.L << 1,
+controller.L = {1,
                 2,
                 3,
-                4;
-                
-controller.I << 1;
+                4};
 ```
 Where 1, 2, 3, 4 are replaced with carefully selected feedback gains (see [below](https://github.com/tomstewart89/StateSpaceControl/blob/master/README.md#tuning-those-gains) for more)
 
@@ -94,7 +91,7 @@ controller.initialise();
 ```
 Define a setpoint:
 ```
-controller.r << 0.1, 5.2;
+controller.r = {0.1, 5.2};
 ```
 And begin the control loop:
 ```
@@ -105,6 +102,15 @@ while(true) {
 }
 ```
 For a complete example of how to set up a StateSpaceControl with this kind of system refer to the [Cart Pole](https://github.com/tomstewart89/StateSpaceControl/blob/master/examples/CartPole/CartPole.ino) example.
+
+## Integral Control
+
+In addition to ```K``` and ```L``` there's one final gain matrix, ```I```, that you might like to tweak to improve the performance of your state space controller. ```I``` controls an integral component that will slowly modify the control input produced by the controller in situations where the output of the system is consistently offset from the desired setpoint.
+
+In the case of the controller we've been referring to above, we can set the integral gain like so:
+```
+controller.I = {1};
+```
 
 ## Tuning Those Gains
 
