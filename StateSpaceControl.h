@@ -7,7 +7,18 @@
 
 using namespace BLA;
 
-template <int X, int U, int Y = X>
+template <bool>
+struct enable_if
+{
+};
+
+template <>
+struct enable_if<true>
+{
+    typedef int type;
+};
+
+template <int X, int U, int Y = X, bool FullStateFeedback = X == Y>
 class StateSpaceController
 {
     Matrix<X, X> ALC;
@@ -24,7 +35,7 @@ class StateSpaceController
     Matrix<U> w_hat;  // estimate of a disturbance / error in the system model (used by the integral controller)
 
     // Control Gains
-    Matrix<U, X> K;  // regulator Gain
+    Matrix<U, X> K;  // regulator gain
     Matrix<X, Y> L;  // estimator gain
     Matrix<U, Y> I;  // integral control gain
 
@@ -37,6 +48,8 @@ class StateSpaceController
           L(Zeros<X, Y>()),
           I(Zeros<U, Y>())
     {
+        static_assert(X == Y || !FullStateFeedback,
+                      "The number of inputs must match the number of outputs if using full state feedback");
     }
 
     void initialise()
@@ -66,10 +79,22 @@ class StateSpaceController
         ALC = model.A - L * model.C;
     }
 
-    void update(const Matrix<Y> &y, const float dt = 0.0f)
+    template <bool FSF>
+    Matrix<X> estimate_state(const Matrix<Y> &y, float dt, typename enable_if<!FSF>::type * = nullptr)
+    {
+        return x_hat + (ALC * x_hat + model.B * u + L * y) * dt;
+    }
+
+    template <bool FSF>
+    Matrix<X> estimate_state(const Matrix<Y> &y, float dt, typename enable_if<FSF>::type * = nullptr)
+    {
+        return y;
+    }
+
+    void update(const Matrix<Y> &y, float dt)
     {
         // First, update the state estimate
-        x_hat += (ALC * x_hat + model.B * u + L * y) * dt;
+        x_hat = estimate_state<FullStateFeedback>(y, dt);
 
         // Calculate the control input required to drive the state to 0.
         u = -K * x_hat;
